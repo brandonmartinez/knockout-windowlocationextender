@@ -1,7 +1,7 @@
 function KnockoutWindowLocationExtender() {
 	'use strict';
 	// Private Variables
-	var self = this, updateHashTimeout, refreshHashTimeout, previousHash = '', hashChanging = false, targets = {};
+	var self = this, updateHashTimeout, refreshHashTimeout, previousHash = '', hashChanging = false, targets = {}, currentHashValues = {};
 
 	// Private Functions
 	function buildEncodedUrl(base, initialPrefix, objectToEncode) {
@@ -55,19 +55,23 @@ function KnockoutWindowLocationExtender() {
 			if (!hashChanging && hash !== previousHash) {
 				var hashObject = splitHash(hash), ho, obj, vmobj;
 
+				// reset cached hash values
+				currentHashValues = {};
+
 				for (ho in hashObject) {
 					if (hashObject.hasOwnProperty(ho)) {
 						obj = hashObject[ho];
 						vmobj = targets[ho];
-						
+
 						// We're only going to set observables
-						if (vmobj && ko.isObservable(vmobj) && !ko.isComputed(vmobj) && (!self.InitialRefresh() || String(vmobj()) !== obj)) {
+						if (vmobj && ko.isWriteableObservable(vmobj) && (!self.InitialRefresh() || String(vmobj()) !== obj)) {
 							vmobj(obj);
+							currentHashValues[ho] = obj;
 						}
 					}
 				}
 
-				self.hashRefreshed();
+				self.hashRefreshed(currentHashValues);
 
 				previousHash = hash;
 				self.InitialRefresh(true);
@@ -80,7 +84,7 @@ function KnockoutWindowLocationExtender() {
 			var hash = self.Hash();
 
 			// if we have a value, set it, if not, remove it from our collection
-			if (typeof newValue !== 'undefined') {
+			if (typeof newValue !== 'undefined' && newValue !== null) {
 				targets[name] = target;
 				hash[name] = newValue;
 			} else {
@@ -156,7 +160,7 @@ function KnockoutWindowLocationExtender() {
 		if (locationHash()) {
 			refreshHash();
 		} else {
-			self.hashRefreshed();
+			self.hashRefreshed(currentHashValues);
 			self.InitialRefresh(true);
 		}
 
